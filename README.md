@@ -1,4 +1,4 @@
-# PGSchema GitHub Actions Example
+# pgschema GitHub Actions Example
 
 This repository demonstrates how to use [pgschema](https://www.pgschema.com/) with GitHub Actions to automatically run schema migration plans on pull requests. It includes examples for both single-file and multi-file schema approaches.
 
