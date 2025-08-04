@@ -30,14 +30,48 @@ jobs:
       - name: Run pgschema plan
         id: plan
         run: |
-          # Run pgschema plan and capture output
-          PLAN_OUTPUT=$(pgschema plan \
+          # Debug: Print environment info
+          echo "::group::Environment Info"
+          echo "Current directory: $(pwd)"
+          echo "Schema file path: ${{ github.workspace }}/singlefile/schema.sql"
+          echo "Checking if schema file exists:"
+          ls -la "${{ github.workspace }}/singlefile/schema.sql" || echo "Schema file not found!"
+          echo "Go version: $(go version)"
+          echo "pgschema location: $(which pgschema)"
+          echo "::endgroup::"
+          
+          # Debug: Test pgschema is installed
+          echo "::group::Testing pgschema installation"
+          pgschema --version || echo "Failed to run pgschema --version"
+          echo "::endgroup::"
+          
+          # Run pgschema plan with timeout and capture output
+          echo "::group::Running pgschema plan"
+          set +e  # Don't exit on error
+          PLAN_OUTPUT=$(timeout 60s pgschema plan \
+            --debug \
             --host "${{ secrets.DB_HOST }}" \
             --port "${{ secrets.DB_PORT }}" \
             --db "${{ secrets.DB_NAME }}" \
             --user "${{ secrets.DB_USER }}" \
             --file "${{ github.workspace }}/singlefile/schema.sql" \
             --format human 2>&1)
+          EXIT_CODE=$?
+          set -e  # Re-enable exit on error
+          echo "::endgroup::"
+          
+          # Check exit code
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "::error::pgschema plan timed out after 60 seconds"
+            PLAN_OUTPUT="Error: pgschema plan timed out after 60 seconds. This might indicate a connection issue to the database."
+          elif [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::pgschema plan failed with exit code $EXIT_CODE"
+          fi
+          
+          # Debug: Show raw output
+          echo "::group::Raw pgschema output"
+          echo "$PLAN_OUTPUT"
+          echo "::endgroup::"
           
           # Escape special characters for GitHub Actions
           PLAN_OUTPUT="${PLAN_OUTPUT//'%'/'%25'}"
