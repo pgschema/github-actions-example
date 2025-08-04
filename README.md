@@ -17,17 +17,7 @@ Both workflows automatically:
 
 ### 1. GitHub Secrets
 
-#### Single File Workflow
-No secrets required! The single-file workflow uses a PostgreSQL 17 test container for demonstration purposes.
-
-#### Multi File Workflow (if using external database)
-Configure the following secrets in your repository settings:
-
-- `DB_HOST` - PostgreSQL database host (default: localhost)
-- `DB_PORT` - PostgreSQL database port (default: 5432)
-- `DB_NAME` - Database name
-- `DB_USER` - Database username
-- `DB_PASSWORD` - Database password
+No secrets required! Both workflows use a PostgreSQL 17 test container for demonstration purposes, making them fully self-contained.
 
 ### 2. Schema Organization
 
@@ -43,6 +33,8 @@ Configure the following secrets in your repository settings:
 - Uses `main.sql` as the entry point with psql `\i` directives
 - Organize files by type in subdirectories (tables/, functions/, views/, etc.)
 - Each file contains a specific database object
+- Uses PostgreSQL 17 test container (no external database needed)
+- Compares current branch schema against main branch schema
 - Workflow: `.github/workflows/pgschema-plan-multi.yml`
 
 ## Usage
@@ -78,15 +70,10 @@ This structure demonstrates how to organize complex schemas across multiple file
 
 ## Security Notes
 
-### Single File Workflow
-- Uses isolated PostgreSQL 17 test container
+- Both workflows use isolated PostgreSQL 17 test containers
 - No external database credentials required
 - Safe for demonstration and testing purposes
-
-### Multi File Workflow  
-- Database credentials are stored as encrypted GitHub secrets
-- The workflow only has read access to your database (it runs `plan`, not `apply`)
-- Consider using a read-only database user for additional security
+- Containers are ephemeral and destroyed after each workflow run
 
 ## Next Steps
 

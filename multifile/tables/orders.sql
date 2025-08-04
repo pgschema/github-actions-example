@@ -9,8 +9,6 @@ CREATE TABLE IF NOT EXISTS orders (
     amount numeric(10,2) DEFAULT 0.00
 );
 
-COMMENT ON TABLE orders IS 'Customer orders';
-
 COMMENT ON COLUMN orders.user_id IS 'Reference to user';
 
 --

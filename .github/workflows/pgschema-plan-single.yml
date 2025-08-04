@@ -100,7 +100,7 @@ jobs:
             // Decode the escaped output
             const decodedOutput = decodeURIComponent(planOutput);
             
-            const body = `## pgschema Plan Output (Single File)
+            const body = `## pgschema Plan Output
             
             <details>
             <summary>Click to expand plan details</summary>
@@ -122,7 +122,7 @@ jobs:
             
             const botComment = comments.find(comment => 
               comment.user.type === 'Bot' && 
-              comment.body.includes('pgschema Plan Output (Single File)')
+              comment.body.includes('pgschema Plan Output')
             );
             
             if (botComment) {
