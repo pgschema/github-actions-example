@@ -19,8 +19,8 @@
 \i functions/update_timestamp.sql
 
 -- Include core tables (with their constraints, indexes, and policies)
+\i tables/addresses.sql
 \i tables/users.sql
-\i tables/orders.sql
 
 -- Include other functions (after tables that they reference)
 \i functions/get_user_count.sql
