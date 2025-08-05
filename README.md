@@ -29,6 +29,25 @@ Apply workflows automatically:
 
 ## Setup
 
+### PostgreSQL 17 Test Container Setup
+
+The workflows automatically set up a PostgreSQL 17 test container and load the baseline schema to emulate a remote database with existing schema. The `baseline.sql` file contains a complete schema.
+
+### Workflow Behavior
+
+Each workflow now:
+
+1. **Starts a clean PostgreSQL 17 container**
+2. **Loads baseline.sql** to simulate an existing remote database
+3. **Runs pgschema** against this baseline to generate migration plans or apply changes
+4. **Reports results** with detailed logging
+
+This approach ensures that:
+
+- Migration plans show realistic diffs against existing schema
+- Apply operations work against a database with existing data structure
+- Tests validate changes in a production-like environment
+
 ### GitHub Secrets
 
 No secrets required! Both workflows start a PostgreSQL 17 test container for demonstration purposes, making them fully self-contained.

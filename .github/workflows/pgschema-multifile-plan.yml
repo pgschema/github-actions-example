@@ -45,6 +45,12 @@ jobs:
       - name: Install pgschema
         run: go install github.com/pgschema/pgschema@latest
 
+      - name: Load baseline schema
+        run: |
+          echo "::group::Loading baseline schema to emulate remote database"
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d testdb -f baseline.sql
+          echo "::endgroup::"
+
       - name: Run pgschema plan
         id: plan
         run: |
