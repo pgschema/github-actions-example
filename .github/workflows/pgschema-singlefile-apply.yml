@@ -45,17 +45,86 @@ jobs:
       - name: Install pgschema
         run: go install github.com/pgschema/pgschema@latest
 
+      - name: Verify database connection
+        run: |
+          echo "::group::Verifying database connection"
+          echo "Testing database connection..."
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d testdb -c "SELECT version();"
+          echo "Database connection successful!"
+          echo "::endgroup::"
+
       - name: Load baseline schema
         run: |
           echo "::group::Loading baseline schema to emulate remote database"
-          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d testdb -f baseline.sql
+          echo "Loading baseline.sql..."
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d testdb -f baseline.sql -v ON_ERROR_STOP=1
+          echo "Baseline schema loaded successfully!"
+          echo "::endgroup::"
+
+      - name: Verify baseline schema
+        run: |
+          echo "::group::Verifying baseline schema was loaded"
+          echo "Checking tables..."
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d testdb -c "\dt"
+          echo ""
+          echo "Checking functions..."
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d testdb -c "\df"
+          echo ""
+          echo "Checking types..."
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d testdb -c "\dT"
+          echo "::endgroup::"
+
+      - name: Debug schema file
+        run: |
+          echo "::group::Debugging schema file"
+          echo "Schema file path: ${{ github.workspace }}/singlefile/schema.sql"
+          echo "Schema file exists: $(test -f "${{ github.workspace }}/singlefile/schema.sql" && echo "YES" || echo "NO")"
+          if [ -f "${{ github.workspace }}/singlefile/schema.sql" ]; then
+            echo "Schema file size: $(wc -l < "${{ github.workspace }}/singlefile/schema.sql") lines"
+            echo "First 10 lines of schema file:"
+            head -10 "${{ github.workspace }}/singlefile/schema.sql"
+          else
+            echo "ERROR: Schema file not found!"
+            echo "Contents of singlefile directory:"
+            ls -la "${{ github.workspace }}/singlefile/" || echo "singlefile directory not found"
+          fi
+          echo "::endgroup::"
+
+      - name: Test pgschema plan first
+        run: |
+          echo "::group::Testing pgschema plan (dry run)"
+          echo "Running pgschema plan to check for issues..."
+          
+          set +e  # Don't exit on error
+          PLAN_OUTPUT=$(pgschema plan \
+            --debug \
+            --host localhost \
+            --port 5432 \
+            --db testdb \
+            --user postgres \
+            --file "${{ github.workspace }}/singlefile/schema.sql" \
+            --format human 2>&1)
+          PLAN_EXIT_CODE=$?
+          set -e  # Re-enable exit on error
+          
+          echo "Plan exit code: $PLAN_EXIT_CODE"
+          echo "Plan output:"
+          echo "$PLAN_OUTPUT"
+          
+          if [ $PLAN_EXIT_CODE -ne 0 ]; then
+            echo "::error::pgschema plan failed - this indicates an issue with the schema file or database connection"
+          fi
           echo "::endgroup::"
 
       - name: Run pgschema apply
         id: apply
         run: |
           echo "::group::Applying schema changes"
-
+          echo "Running pgschema apply with detailed logging..."
+          
+          # Enable detailed error reporting
+          set -x  # Show commands as they execute
+          
           # Run pgschema apply with auto-approve
           APPLY_OUTPUT=$(pgschema apply \
             --auto-approve \
@@ -70,8 +139,11 @@ jobs:
             --format human 2>&1)
 
           APPLY_EXIT_CODE=$?
+          
+          set +x  # Disable command tracing
 
-          # Output the results
+          echo "Apply exit code: $APPLY_EXIT_CODE"
+          echo "Apply output:"
           echo "$APPLY_OUTPUT"
 
           echo "::endgroup::"
@@ -82,6 +154,23 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
           echo "exit_code=$APPLY_EXIT_CODE" >> $GITHUB_OUTPUT
+
+          # If failed, provide additional debugging
+          if [ $APPLY_EXIT_CODE -ne 0 ]; then
+            echo "::group::Additional debugging for failure"
+            echo "pgschema version:"
+            pgschema --version || echo "Could not get pgschema version"
+            echo ""
+            echo "Current working directory:"
+            pwd
+            echo ""
+            echo "Environment variables:"
+            env | grep -E "(PG|POSTGRES)" || echo "No PostgreSQL environment variables found"
+            echo ""
+            echo "Database connection test:"
+            PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d testdb -c "SELECT current_database(), current_user;" || echo "Database connection failed"
+            echo "::endgroup::"
+          fi
 
           # Exit with the same code as pgschema
           exit $APPLY_EXIT_CODE
@@ -100,4 +189,23 @@ jobs:
         run: |
           echo "❌ Failed to apply schema changes!"
           echo ""
-          echo "Please check the logs above for details."
+          echo "🔍 Debugging Information:"
+          echo "- Check the 'Debug schema file' step to verify the schema file exists"
+          echo "- Check the 'Verify database connection' step for connection issues"
+          echo "- Check the 'Verify baseline schema' step to ensure baseline loaded correctly"
+          echo "- Check the 'Test pgschema plan first' step for schema validation issues"
+          echo "- Check the 'Run pgschema apply' step for detailed error output"
+          echo ""
+          echo "📋 Common issues:"
+          echo "- Schema syntax errors in singlefile/schema.sql"
+          echo "- Database connection issues (host, port, credentials)"
+          echo "- Lock timeout exceeded (another process holding locks)"
+          echo "- Incompatible schema changes (breaking changes to existing structure)"
+          echo "- Missing schema file or incorrect file path"
+          echo "- Baseline schema conflicts with target schema"
+          echo ""
+          echo "💡 Next steps:"
+          echo "1. Review the detailed logs in the failed steps above"
+          echo "2. Test the schema file locally with pgschema plan"
+          echo "3. Verify the schema syntax is valid PostgreSQL"
+          echo "4. Check for conflicts between baseline.sql and singlefile/schema.sql"
