@@ -15,17 +15,17 @@ Plan workflows automatically:
 - Post the migration plan as a comment on the PR
 - Update the comment if the PR is synchronized with new changes
 
-### Apply Workflows (Main Branch)
+### Apply Workflows (Merged Pull Requests)
 
 - **Single File Apply** - Applies schema changes for single-file approach
 - **Multi File Apply** - Applies schema changes for multi-file approach
 
 Apply workflows automatically:
 
-- Run `pgschema apply` when changes are pushed to main branch
+- Run `pgschema apply` when pull requests are merged to main branch
 - Use `--auto-approve` flag for automated deployment
 - Apply changes to a test PostgreSQL 17 container
-- Report success or failure with detailed logs
+- Comment on the PR with success or failure results and detailed logs
 
 ## Setup
 
