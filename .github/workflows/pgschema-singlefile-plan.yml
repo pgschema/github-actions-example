@@ -54,6 +54,11 @@ jobs:
       - name: Run pgschema plan
         id: plan
         run: |
+          echo "Running pgschema plan with detailed logging..."
+          
+          # Enable detailed error reporting
+          set -x  # Show commands as they execute
+          
           # Run pgschema plan
           PLAN_OUTPUT=$(pgschema plan \
             --debug \
@@ -62,7 +67,9 @@ jobs:
             --db testdb \
             --user postgres \
             --file "${{ github.workspace }}/singlefile/schema.sql" \
-            --format human 2>&1)
+            2>&1)
+          
+          set +x  # Disable command tracing
 
           # Set output
           echo "plan<<EOF" >> $GITHUB_OUTPUT
