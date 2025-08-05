@@ -5,7 +5,8 @@
 CREATE TABLE IF NOT EXISTS users (
     id integer PRIMARY KEY,
     email text NOT NULL CHECK (email LIKE '%@%'),
-    name text NOT NULL
+    name text NOT NULL,
+    city text NOT NULL
 );
 
 COMMENT ON TABLE users IS 'User accounts';
