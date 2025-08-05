@@ -69,8 +69,7 @@ jobs:
           script: |
             const planOutput = `${{ steps.plan.outputs.plan }}`;
 
-            // Decode the escaped output
-            const decodedOutput = decodeURIComponent(planOutput);
+            const decodedOutput = planOutput;
 
             const body = `## pgschema Plan Output
 
