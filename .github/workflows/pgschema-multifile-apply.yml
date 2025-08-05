@@ -1,0 +1,102 @@
+name: pgschema Apply - Multi File
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'multifile/**'
+      - '.github/workflows/pgschema-multifile-apply.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pgschema-apply-multi:
+    runs-on: ubuntu-latest
+    
+    env:
+      PGPASSWORD: postgres
+    
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          
+      - name: Install pgschema
+        run: go install github.com/pgschema/pgschema@latest
+        
+      - name: Run pgschema apply
+        id: apply
+        run: |
+          echo "::group::Applying schema changes"
+          
+          # Run pgschema apply with auto-approve
+          APPLY_OUTPUT=$(pgschema apply \
+            --auto-approve \
+            --debug \
+            --host localhost \
+            --port 5432 \
+            --db testdb \
+            --user postgres \
+            --file "${{ github.workspace }}/multifile/main.sql" \
+            --lock-timeout "30s" \
+            --application-name "pgschema-github-action-apply" \
+            --format human 2>&1)
+          
+          APPLY_EXIT_CODE=$?
+          
+          # Output the results
+          echo "$APPLY_OUTPUT"
+          
+          echo "::endgroup::"
+          
+          # Set outputs for potential future use
+          echo "output<<EOF" >> $GITHUB_OUTPUT
+          echo "$APPLY_OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "exit_code=$APPLY_EXIT_CODE" >> $GITHUB_OUTPUT
+          
+          # Exit with the same code as pgschema
+          exit $APPLY_EXIT_CODE
+          
+      - name: Report Success
+        if: success()
+        run: |
+          echo "✅ Schema changes applied successfully!"
+          echo ""
+          echo "Applied to database: testdb"
+          echo "Application name: pgschema-github-action-apply"
+          echo "Lock timeout: 30s"
+          
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "❌ Failed to apply schema changes!"
+          echo ""
+          echo "Please check the logs above for details."
+          echo "Common issues:"
+          echo "- Schema syntax errors"
+          echo "- Database connection issues"
+          echo "- Lock timeout exceeded"
+          echo "- Incompatible schema changes"
