@@ -55,7 +55,11 @@ jobs:
         id: apply
         run: |
           echo "::group::Applying schema changes"
-
+          echo "Running pgschema apply with detailed logging..."
+          
+          # Enable detailed error reporting
+          set -x  # Show commands as they execute
+          
           # Run pgschema apply with auto-approve
           APPLY_OUTPUT=$(pgschema apply \
             --auto-approve \
@@ -67,11 +71,14 @@ jobs:
             --file "${{ github.workspace }}/singlefile/schema.sql" \
             --lock-timeout "30s" \
             --application-name "pgschema-github-action-apply" \
-            --format human 2>&1)
+            2>&1)
 
           APPLY_EXIT_CODE=$?
+          
+          set +x  # Disable command tracing
 
-          # Output the results
+          echo "Apply exit code: $APPLY_EXIT_CODE"
+          echo "Apply output:"
           echo "$APPLY_OUTPUT"
 
           echo "::endgroup::"
@@ -82,6 +89,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
           echo "exit_code=$APPLY_EXIT_CODE" >> $GITHUB_OUTPUT
+
 
           # Exit with the same code as pgschema
           exit $APPLY_EXIT_CODE
@@ -101,3 +109,8 @@ jobs:
           echo "❌ Failed to apply schema changes!"
           echo ""
           echo "Please check the logs above for details."
+          echo "Common issues:"
+          echo "- Schema syntax errors"
+          echo "- Database connection issues"
+          echo "- Lock timeout exceeded"
+          echo "- Incompatible schema changes"
