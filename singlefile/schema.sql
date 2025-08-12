@@ -71,7 +71,8 @@ $$;
 CREATE TABLE IF NOT EXISTS users (
     id integer PRIMARY KEY,
     email text NOT NULL CHECK (email LIKE '%@%'),
-    name text NOT NULL
+    name text NOT NULL,
+    age integer CHECK (age >= 0)
 );
 
 COMMENT ON TABLE users IS 'User accounts';
@@ -117,8 +118,7 @@ CREATE OR REPLACE TRIGGER users_update_trigger
 CREATE TABLE IF NOT EXISTS orders (
     id integer PRIMARY KEY,
     user_id integer NOT NULL REFERENCES users(id),
-    status text DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'completed')),
-    amount numeric(10,2) DEFAULT 0.00
+    status text DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'completed'))
 );
 
 COMMENT ON TABLE orders IS 'Customer orders';
