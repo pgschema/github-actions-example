@@ -55,11 +55,11 @@ jobs:
         id: plan
         run: |
           echo "Running pgschema plan with detailed logging..."
-          
+
           # Enable detailed error reporting
           set -x  # Show commands as they execute
-          
-          # Run pgschema plan
+
+          # Run pgschema plan and generate both text and JSON output
           PLAN_OUTPUT=$(pgschema plan \
             --debug \
             --host localhost \
@@ -67,14 +67,31 @@ jobs:
             --db testdb \
             --user postgres \
             --file "${{ github.workspace }}/multifile/main.sql" \
+            --output-json plan.json \
+            --output-human stdout \
             2>&1)
-          
+
           set +x  # Disable command tracing
 
-          # Set output
+          # Verify plan.json was created
+          if [ ! -f "plan.json" ]; then
+            echo "❌ Error: plan.json was not generated"
+            exit 1
+          fi
+
+          echo "✅ plan.json generated successfully"
+
+          # Set output for PR comment
           echo "plan<<EOF" >> $GITHUB_OUTPUT
           echo "$PLAN_OUTPUT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload plan.json artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pgschema-plan-${{ github.event.pull_request.number }}
+          path: plan.json
+          retention-days: 30
 
       - name: Comment PR
         uses: actions/github-script@v7
@@ -86,6 +103,10 @@ jobs:
             const decodedOutput = planOutput;
 
             const body = `## pgschema Plan Output
+
+            📋 **Plan artifact created:** \`pgschema-plan-${{ github.event.pull_request.number }}\`
+
+            This plan will be used automatically when the PR is merged.
 
             <details>
             <summary>Click to expand plan details</summary>
