@@ -48,6 +48,22 @@ jobs:
       - name: Install pgschema
         run: go install github.com/pgschema/pgschema@latest
 
+      - name: Download plan.json artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pgschema-singlefile-plan-${{ github.event.pull_request.number }}
+          path: .
+
+      - name: Validate plan.json
+        run: |
+          if [ ! -f "plan.json" ]; then
+            echo "❌ Error: plan.json not found. Make sure the plan workflow completed successfully."
+            exit 1
+          fi
+          
+          echo "✅ plan.json found and ready for apply"
+          echo "Plan file size: $(stat -f%z plan.json 2>/dev/null || stat -c%s plan.json) bytes"
+
       - name: Load baseline schema
         run: |
           echo "::group::Loading baseline schema to emulate remote database"
@@ -57,21 +73,20 @@ jobs:
       - name: Run pgschema apply
         id: apply
         run: |
-          echo "::group::Applying schema changes"
-          echo "Running pgschema apply with detailed logging..."
+          echo "::group::Applying schema changes using plan.json"
+          echo "Running pgschema apply with pre-generated plan..."
 
           # Enable detailed error reporting
           set -x  # Show commands as they execute
 
-          # Run pgschema apply with auto-approve
+          # Run pgschema apply using the plan.json file
           APPLY_OUTPUT=$(pgschema apply \
-            --auto-approve \
             --debug \
             --host localhost \
             --port 5432 \
             --db testdb \
             --user postgres \
-            --file "${{ github.workspace }}/singlefile/schema.sql" \
+            --plan plan.json \
             --lock-timeout "30s" \
             --application-name "pgschema-github-action-apply" \
             2>&1)
@@ -92,7 +107,6 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
           echo "exit_code=$APPLY_EXIT_CODE" >> $GITHUB_OUTPUT
-
 
           # Exit with the same code as pgschema
           exit $APPLY_EXIT_CODE
@@ -129,6 +143,8 @@ jobs:
             if (wasSuccessful) {
               commentBody = `## ✅ Schema Changes Applied Successfully!
 
+            📋 **Applied using plan:** \`pgschema-singlefile-plan-${{ github.event.pull_request.number }}\`
+
             <details>
             <summary>📋 Applied Changes</summary>
 
@@ -145,7 +161,14 @@ jobs:
             } else {
               commentBody = `## ❌ Schema Migration Failed!
 
-            The single-file schema migration failed after merging this PR. Please review the error details below:
+            The single-file schema migration failed after merging this PR using plan \`pgschema-singlefile-plan-${{ github.event.pull_request.number }}\`.
+            
+            This could indicate:
+            - Database schema changed between plan and apply (fingerprint mismatch)
+            - Invalid plan.json file
+            - Database connectivity issues
+            
+            Please review the error details below:
 
             <details>
             <summary>🔍 Error Details</summary>
