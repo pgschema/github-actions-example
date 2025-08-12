@@ -1,6 +1,6 @@
 # pgschema GitHub Actions Example
 
-This repository demonstrates how to use [pgschema](https://www.pgschema.com/) with GitHub Actions to automatically run schema migration plans on pull requests. It includes examples for both single-file and multi-file schema approaches.
+This repository demonstrates how to use [pgschema](https://www.pgschema.com/) with GitHub Actions to implement the **plan-review-apply workflow pattern** for safe database schema migrations. It includes examples for both single-file and multi-file schema approaches.
 
 ## Overview
 
@@ -11,8 +11,10 @@ This repository demonstrates how to use [pgschema](https://www.pgschema.com/) wi
 
 Plan workflows automatically:
 
-- Run `pgschema plan` when a PR modifies schema files
-- Post the migration plan as a comment on the PR
+- Run `pgschema plan --output-human stdout --output-json plan.json` when a PR modifies schema files
+- Generate both human-readable output for PR comments and plan.json artifact for deployment
+- Post the migration plan as a comment on the PR for team review
+- Upload plan.json as a GitHub artifact for the apply workflow
 - Update the comment if the PR is synchronized with new changes
 
 ### Apply Workflows (Merged Pull Requests)
@@ -22,10 +24,35 @@ Plan workflows automatically:
 
 Apply workflows automatically:
 
-- Run `pgschema apply` when pull requests are merged to main branch
-- Use `--auto-approve` flag for automated deployment
+- Download the plan.json artifact generated during the plan phase using `dawidd6/action-download-artifact`
+- Run `pgschema apply --plan plan.json --auto-approve` using the pre-approved plan
+- Validate database fingerprint to ensure no concurrent schema changes occurred
 - Apply changes to a test PostgreSQL 17 container
 - Comment on the PR with success or failure results and detailed logs
+
+## Plan-Review-Apply Workflow Pattern
+
+This implementation follows the [pgschema plan-review-apply pattern](https://www.pgschema.com/workflow/plan-review-apply) for safe database migrations:
+
+### 1. Plan Phase (Pull Request)
+
+- Generates detailed migration plan with `pgschema plan`
+- Creates both human-readable output and plan.json artifact
+- Team reviews the proposed changes in PR comments
+- Plan.json is stored as GitHub artifact for later use
+
+### 2. Review Phase (Pull Request Review)
+
+- Team examines the migration plan for correctness and safety
+- Considers business impact and potential risks
+- Approves or requests changes before merging
+
+### 3. Apply Phase (Merge to Main)
+
+- Downloads the exact plan.json that was reviewed using `dawidd6/action-download-artifact`
+- Applies using `pgschema apply --plan plan.json --auto-approve`
+- Fingerprint validation prevents concurrent schema changes
+- Ensures exactly what was planned is what gets applied
 
 ## Setup
 
@@ -47,6 +74,8 @@ This approach ensures that:
 - Migration plans show realistic diffs against existing schema
 - Apply operations work against a database with existing data structure
 - Tests validate changes in a production-like environment
+- Plans are generated and validated against the actual target database state
+- Fingerprint validation catches any concurrent schema modifications
 
 ### GitHub Secrets
 
